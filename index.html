@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campanha Porto de São Sebastião</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #fff; color: #111; line-height: 1.6; }
+    .container { max-width: 800px; margin: auto; padding: 20px; }
+    .hero { text-align: center; padding: 40px 0; }
+    .hero h1 { font-size: 1.8rem; margin-bottom: 10px; }
+    .hero video, .hero img { width: 100%; max-width: 400px; border-radius: 12px; margin: 20px 0; }
+    .assinatura { background: #f9f9f9; border-radius: 10px; padding: 20px; margin: 20px 0; }
+    .assinatura h2 { font-size: 1.2rem; margin-bottom: 10px; }
+    input[type="text"], input[type="email"] {
+      width: 100%; padding: 10px; margin: 5px 0 10px; border-radius: 6px; border: 1px solid #ccc;
+    }
+    button { background: #0057e7; color: white; padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; width: 100%; }
+    .contador { font-size: 1rem; margin-top: 10px; text-align: center; }
+    .progresso { background: #eee; border-radius: 6px; overflow: hidden; height: 20px; margin: 10px 0; }
+    .progresso-barra { height: 100%; background: #0057e7; width: 0%; text-align: right; padding-right: 5px; color: #fff; font-size: 0.9rem; }
+    .info-link { text-align: center; margin-top: 20px; }
+    .info-link a { color: #0057e7; text-decoration: none; }
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 1.4rem; }
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <h1>Eu assinei pelo futuro do Porto de São Sebastião. E você?</h1>
+      <img src="sua-imagem-ou-video-thumbnail.jpg" alt="Assinatura">
+      <p><strong><span id="assinaturas-contador">3.082 pessoas já assinaram</span></strong></p>
+      <div class="progresso">
+        <div class="progresso-barra" id="progresso-barra">0%</div>
+      </div>
+      <p class="contador">Meta: 5.000 assinaturas</p>
+    </section>
+
+    <section class="assinatura">
+      <h2>Assine digitalmente pelo Porto de São Sebastião</h2>
+      <form id="form-assinatura">
+        <input type="text" placeholder="Nome" required>
+        <input type="email" placeholder="E-mail" required>
+        <input type="text" placeholder="CPF" required>
+        <button type="submit">ASSINAR</button>
+      </form>
+    </section>
+
+    <div class="info-link">
+      <p>Ou <a href="#">obtenha mais informações sobre o porto</a></p>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "SUA_API_KEY",
+      authDomain: "SEU_PROJETO.firebaseapp.com",
+      databaseURL: "https://SEU_PROJETO.firebaseio.com",
+      projectId: "SEU_PROJETO",
+      storageBucket: "SEU_PROJETO.appspot.com",
+      messagingSenderId: "SEU_SENDER_ID",
+      appId: "SEU_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const totalMeta = 5000;
+
+    db.ref("assinaturas/total").on("value", snapshot => {
+      const totalAtual = snapshot.val() || 0;
+      const porcentagem = ((totalAtual / totalMeta) * 100).toFixed(2);
+
+      document.getElementById("progresso-barra").style.width = porcentagem + "%";
+      document.getElementById("progresso-barra").innerText = porcentagem + "%";
+      document.getElementById("assinaturas-contador").innerText = totalAtual + " pessoas já assinaram";
+    });
+
+    const form = document.getElementById("form-assinatura");
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const nome = form.querySelector("input[placeholder='Nome']").value;
+      const email = form.querySelector("input[placeholder='E-mail']").value;
+      const cpf = form.querySelector("input[placeholder='CPF']").value;
+
+      enviarParaAssinatura(nome, email, cpf);
+
+      db.ref("assinaturas/total").transaction(current => {
+        return (current || 0) + 1;
+      });
+
+      alert("Obrigado por assinar! Compartilhe agora em suas redes sociais.");
+      window.open("https://wa.me/?text=Eu%20assinei%20pela%20valorizacao%20do%20Porto%20de%20Sao%20Sebastiao!%20Assine%20voce%20tambem:%20https://seudominio.com", "_blank");
+    });
+
+    async function enviarParaAssinatura(nome, email, cpf) {
+      const documento = {
+        document: {
+          path: "https://seudominio.com/documento.pdf",
+          deadline_at: "2025-12-31",
+          auto_close: true
+        }
+      };
+
+      const responseDoc = await fetch("https://sandbox.clicksign.com/api/v1/documents?access_token=SUA_API_KEY", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(documento)
+      });
+
+      const { document } = await responseDoc.json();
+
+      const signer = {
+        signer: {
+          email: email,
+          act: "sign",
+          sign_as: "sign",
+          name: nome,
+          documentation: cpf,
+          delivery: "email"
+        }
+      };
+
+      await fetch(`https://sandbox.clicksign.com/api/v1/documents/${document.key}/signers?access_token=SUA_API_KEY`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(signer)
+      });
+
+      alert("Link de assinatura enviado por e-mail!");
+    }
+  </script>
+</body>
+</html>
